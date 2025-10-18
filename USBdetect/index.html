@@ -1,0 +1,234 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USB 차단 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        /* 스크롤바 스타일링 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a202c; /* bg-gray-800 */
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568; /* bg-gray-600 */
+            border-radius: 4px;
+        }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #718096; /* bg-gray-500 */
+            }
+
+        /* --- 토글 스위치 스타일 --- */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px; /* 스위치 전체 너비 */
+            height: 34px; /* 스위치 전체 높이 */
+        }
+
+            .toggle-switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ef4444; /* bg-red-500 (차단 시) */
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 26px; /* 스위치 원의 높이 */
+                width: 26px; /* 스위치 원의 너비 */
+                left: 4px;
+                bottom: 4px;
+                background-color: white;
+                -webkit-transition: .4s;
+                transition: .4s;
+                border-radius: 50%;
+            }
+
+        input:checked + .slider {
+            background-color: #22c55e; /* bg-green-500 (허용 시) */
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #22c55e;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px); /* 원 이동 거리 */
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+            .slider.round:before {
+                border-radius: 50%;
+            }
+        /* --- 토글 스위치 끝 --- */
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div class="flex min-h-screen">
+        <div class="w-3/5 p-8 border-r border-gray-700">
+            <header class="mb-8">
+                <h1 class="text-3xl font-bold text-blue-300">USB 장치 관리</h1>
+                <p class="text-gray-400 mt-2">연결된 USB 장치 목록 및 상태를 확인하고 관리합니다.</p>
+            </header>
+
+            <div class="bg-gray-800 rounded-lg shadow-xl p-6 h-[calc(100vh-12rem)] overflow-y-auto">
+                <h2 class="text-xl font-semibold mb-4 border-b border-gray-600 pb-2">연결된 장치</h2>
+                <ul id="device-list" class="space-y-4">
+                </ul>
+            </div>
+        </div>
+
+        <div class="w-2/5 p-8 bg-black">
+            <h2 class="text-2xl font-bold text-blue-300 mb-8">관리 메뉴</h2>
+            <div class="space-y-4">
+                <button data-content="logs" class="menu-button w-full text-left p-4 bg-gray-800 hover:bg-blue-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    로그 보기
+                </button>
+                <button data-content="policy" class="menu-button w-full text-left p-4 bg-gray-800 hover:bg-blue-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    정책 설정
+                </button>
+                <button data-content="users" class="menu-button w-full text-left p-4 bg-gray-800 hover:bg-blue-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    사용자 관리
+                </button>
+                <button data-content="settings" class="menu-button w-full text-left p-4 bg-gray-800 hover:bg-blue-800 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    시스템 설정
+                </button>
+            </div>
+
+            <div id="content-area" class="mt-8 p-6 bg-gray-800 rounded-lg h-[calc(100vh-24rem)]">
+                <div class="text-gray-400">메뉴를 선택하여 내용을 확인하세요.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 데이터 예시 ---
+        const devices = [
+            { id: 'sandisk-01', name: 'SanDisk Ultra 3.0', status: 'allowed', connectedAt: '2025-10-18 20:10:05' },
+            { id: 'samsung-t7-01', name: 'Samsung Portable SSD T7', status: 'blocked', connectedAt: '2025-10-18 20:12:30' },
+            { id: 'logitech-receiver-01', name: 'Logitech Unifying Receiver', status: 'allowed', connectedAt: '2025-10-18 19:55:11' },
+            { id: 'kingston-dt-01', name: 'Kingston DataTraveler G4', status: 'blocked', connectedAt: '2025-10-18 20:15:45' },
+            { id: 'generic-storage-01', name: 'Generic Mass Storage', status: 'allowed', connectedAt: '2025-10-18 18:30:00' },
+        ];
+
+        // --- 콘텐츠 예시 ---
+        const contentData = {
+            logs: `
+                    <h3 class="text-lg font-semibold text-blue-300 mb-4">최신 로그</h3>
+                    <ul class="text-sm text-gray-300 space-y-2">
+                        <li><span class="text-red-400">[차단]</span> 'Samsung Portable SSD T7' 연결 시도 (IP: 192.168.1.10)</li>
+                        <li><span class="text-green-400">[허용]</span> 'SanDisk Ultra 3.0' 연결 (IP: 192.168.1.12)</li>
+                        <li><span class="text-yellow-400">[경고]</span> 정책 업데이트: '읽기 전용' 정책 활성화</li>
+                    </ul>`,
+            policy: `
+                    <h3 class="text-lg font-semibold text-blue-300 mb-4">보안 정책 설정</h3>
+                    <div class="space-y-4">
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" class="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" checked>
+                            <span class="text-gray-300">허용된 장치만 연결 허용</span>
+                        </label>
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" class="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-gray-300">모든 USB 저장 장치 읽기 전용으로 설정</span>
+                        </label>
+                    </div>`,
+            users: `<h3 class="text-lg font-semibold text-blue-300 mb-4">사용자 관리</h3><p class="text-gray-400">이곳에서 사용자별 USB 장치 사용 권한을 설정할 수 있습니다.</p>`,
+            settings: `<h3 class="text-lg font-semibold text-blue-300 mb-4">시스템 설정</h3><p class="text-gray-400">알림, 백업 등 전반적인 시스템 설정을 변경합니다.</p>`,
+        };
+
+        // --- 기능 구현 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const deviceList = document.getElementById('device-list');
+            const menuButtons = document.querySelectorAll('.menu-button');
+            const contentArea = document.getElementById('content-area');
+
+            // 1. 장치 목록 렌더링
+            function renderDevices() {
+                deviceList.innerHTML = '';
+                devices.forEach(device => {
+                    const statusClass = device.status === 'allowed' ? 'text-green-400' : 'text-red-400';
+                    const statusText = device.status === 'allowed' ? '허용됨' : '차단됨';
+
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center justify-between p-4 bg-gray-900 rounded-lg';
+                    li.innerHTML = `
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <div>
+                                    <p class="font-medium">${device.name}</p>
+                                    <p class="text-sm text-gray-500">${device.connectedAt}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <span class="font-semibold ${statusClass} w-20 text-right">${statusText}</span>
+
+                                <label class="toggle-switch">
+                                    <input type="checkbox" data-id="${device.id}" ${device.status === 'allowed' ? 'checked' : ''}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        `;
+                    deviceList.appendChild(li);
+                });
+            }
+
+            // 2. 메뉴 버튼 클릭 이벤트
+            menuButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const contentKey = button.dataset.content;
+                    contentArea.innerHTML = contentData[contentKey] || '<p>내용을 불러올 수 없습니다.</p>';
+                });
+            });
+
+            // 3. 장치 상태 변경 (이벤트 위임 사용) - 수정된 부분
+            deviceList.addEventListener('change', (e) => { // 'click' 대신 'change' 이벤트 사용
+                if (e.target.type === 'checkbox' && e.target.closest('.toggle-switch')) { // 체크박스이면서 토글 스위치 내부일 때
+                    const deviceId = e.target.dataset.id;
+                    const device = devices.find(d => d.id === deviceId);
+                    if (device) {
+                        // 체크박스의 현재 'checked' 상태에 따라 device.status 업데이트
+                        device.status = e.target.checked ? 'allowed' : 'blocked';
+                        renderDevices(); // 상태 변경 후 목록 다시 렌더링
+                    }
+                }
+            });
+
+            // 초기 장치 목록 로드
+            renderDevices();
+        });
+    </script>
+</body>
+</html>
