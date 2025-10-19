@@ -8,6 +8,8 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using UsbLibWrapper;
+
 namespace USBdetect
 {
     public partial class Main : Form
@@ -21,6 +23,19 @@ namespace USBdetect
             this.FormClosing += Main_FormClosing;
 
             SetupCustomTitleBar();
+
+            var manager = new UsbManagerManaged();
+            var devices = manager.Scan();
+            if (devices.Count == 0)
+            {
+                MessageBox.Show("No USB devices found.");
+                return;
+            }
+            for (int i = 0; i < devices.Count; i++)
+            {
+                var d = devices[i];
+                MessageBox.Show($"[{i}] {d.Model}");
+            }
         }
 
         public const int WM_NCLBUTTONDOWN = 0xA1;
