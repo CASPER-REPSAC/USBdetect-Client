@@ -283,7 +283,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="UsbLibWrapper_Framework, Version=1.0.9423.33166, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Documents\카카오톡 받은 파일\차단기능완료\UsbLibWrapper_Framework.dll</HintPath>
+      <HintPath>.\UsbLibWrapper_Framework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -323,11 +323,11 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="core\UsbLib.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="UsbLib.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="core\UsbLibWrapper_Framework.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="UsbLibWrapper_Framework.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="favicon.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
