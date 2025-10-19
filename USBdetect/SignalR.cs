@@ -64,6 +64,12 @@ namespace USBdetect
             }
         }
 
+        public async Task SendTestMessageAsync()
+        {
+            // "Test Client"라는 사용자로 "This is a test message."라는 메시지를 보냅니다.
+            await SendMessageAsync("Test Client", "This is a test message.");
+        }
+
         public async Task DisconnectAsync()
         {
             if (connection != null && connection.State != HubConnectionState.Disconnected)

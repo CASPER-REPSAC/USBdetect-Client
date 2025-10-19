@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace USBdetect
@@ -104,7 +105,7 @@ namespace USBdetect
                 _ = signalR.DisconnectAsync();
             }
         }
-
+        /*
         private async void HandleWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
             string jsonMessage = args.WebMessageAsJson;
@@ -122,6 +123,39 @@ namespace USBdetect
                 signalR.MessageReceived += OnMessageReceived;
                 signalR.ConnectionStatusChanged += OnConnectionStatusChanged;
                 await signalR.ConnectAsync();
+            }
+        }
+        */
+        private async void HandleWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            string jsonMessage = args.WebMessageAsJson;
+            if (string.IsNullOrEmpty(jsonMessage)) return;
+
+            JsonNode message = JsonNode.Parse(jsonMessage);
+            string messageType = message?["type"]?.GetValue<string>();
+
+            // "connectSettings" 또는 "connectAndTest" 메시지일 때 서버 정보를 가져옵니다.
+            if (messageType == "connectSettings" || messageType == "connectAndTest")
+            {
+                string ip = message?["data"]?["serverIp"]?.GetValue<string>();
+                string port = message?["data"]?["serverPort"]?.GetValue<string>();
+
+                // SignalR 객체를 생성하고 이벤트를 연결합니다.
+                signalR = new SignalR(ip, port);
+                signalR.MessageReceived += OnMessageReceived;
+                signalR.ConnectionStatusChanged += OnConnectionStatusChanged;
+
+                // 서버에 연결을 시도합니다.
+                await signalR.ConnectAsync();
+
+                // 만약 메시지 타입이 "connectAndTest"였다면, 테스트 메시지를 즉시 보냅니다.
+                if (messageType == "connectAndTest")
+                {
+                    // 연결이 성공적으로 이루어졌는지 잠시 기다린 후 메시지를 보냅니다.
+                    // (연결 상태를 직접 확인하는 로직을 추가하면 더 안정적입니다.)
+                    await Task.Delay(1000); // 1초 대기
+                    await signalR.SendTestMessageAsync();
+                }
             }
         }
 

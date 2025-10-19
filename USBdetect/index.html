@@ -263,7 +263,7 @@
                     }
                 }
             });
-
+            /*
             contentArea.addEventListener('click', (e) => {
                 if (e.target.id === 'connect-settings-btn') {
                     const ip = document.getElementById('server-ip').value;
@@ -275,7 +275,21 @@
                     });
                 }
             });
+            */
+            contentArea.addEventListener('click', (e) => {
+                // 버튼의 id가 'connect-settings-btn'인지 확인합니다.
+                if (e.target.id === 'connect-settings-btn') {
+                    const ip = document.getElementById('server-ip').value;
+                    const port = document.getElementById('server-port').value;
 
+                    // C#으로 메시지를 보냅니다.
+                    window.chrome.webview.postMessage({
+                        // 메시지 타입을 "connectAndTest"로 변경합니다.
+                        type: "connectAndTest",
+                        data: { serverIp: ip, serverPort: port }
+                    });
+                }
+            });
             // 초기 장치 목록 로드
             renderDevices();
         });
