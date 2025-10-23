@@ -22,7 +22,7 @@ namespace USBdetect
             this.Load += Load_Main;
             this.FormClosing += Main_FormClosing;
 
-            notifyIcon1.DoubleClick += new EventHandler(notifyIcon1_MouseDoubleClick);
+            // notifyIcon1.DoubleClick += new EventHandler(notifyIcon1_MouseDoubleClick);
             manage_NotifyIcon();
 
             SetupCustomTitleBar();
@@ -61,7 +61,8 @@ namespace USBdetect
             // 버튼 클릭 이벤트 연결
             btnClose.Click += (s, e) => this.Close();
             btnMinimize.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
-            btnMaximize.Click += (s, e) => {
+            btnMaximize.Click += (s, e) =>
+            {
                 if (this.WindowState == FormWindowState.Normal)
                     this.WindowState = FormWindowState.Maximized;
                 else
@@ -210,6 +211,8 @@ namespace USBdetect
         private void notifyIcon1_MouseDoubleClick(object sender, EventArgs e)
         {
             this.WindowState = FormWindowState.Normal;
+
+            notifyIcon1.ShowBalloonTip(3000, "[주의]", "새로운 USB 입력이 감지되었습니다!", ToolTipIcon.Warning);
         }
     }
 }
