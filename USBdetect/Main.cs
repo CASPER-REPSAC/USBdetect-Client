@@ -22,6 +22,9 @@ namespace USBdetect
             this.Load += Load_Main;
             this.FormClosing += Main_FormClosing;
 
+            notifyIcon1.DoubleClick += new EventHandler(notifyIcon1_MouseDoubleClick);
+            manage_NotifyIcon();
+
             SetupCustomTitleBar();
 
             var manager = new UsbManagerManaged();
@@ -189,6 +192,24 @@ namespace USBdetect
             {
                 MessageBox.Show(this, status, "연결 상태 변경");
             });
+        }
+
+        private void manage_NotifyIcon()
+        {
+            string startupPath = Application.StartupPath;
+            string strIconFilePath = System.IO.Path.Combine(startupPath, "favicon.ico");
+
+            if (System.IO.File.Exists(strIconFilePath))
+            {
+                notifyIcon1.Icon = new System.Drawing.Icon(strIconFilePath);
+                notifyIcon1.Text = "USB Detector";
+                notifyIcon1.Visible = true;
+            }
+        }
+
+        private void notifyIcon1_MouseDoubleClick(object sender, EventArgs e)
+        {
+            this.WindowState = FormWindowState.Normal;
         }
     }
 }
