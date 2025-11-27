@@ -9,6 +9,8 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using UsbLibWrapper;
+
 namespace USBdetect
 {
     public partial class Main : Form
@@ -21,7 +23,23 @@ namespace USBdetect
             this.Load += Load_Main;
             this.FormClosing += Main_FormClosing;
 
+            // notifyIcon1.DoubleClick += new EventHandler(notifyIcon1_MouseDoubleClick);
+            manage_NotifyIcon();
+
             SetupCustomTitleBar();
+
+            var manager = new UsbManagerManaged();
+            var devices = manager.Scan();
+            if (devices.Count == 0)
+            {
+                MessageBox.Show("No USB devices found.");
+                return;
+            }
+            for (int i = 0; i < devices.Count; i++)
+            {
+                var d = devices[i];
+                MessageBox.Show($"[{i}] {d.Model}");
+            }
         }
 
         public const int WM_NCLBUTTONDOWN = 0xA1;
@@ -44,7 +62,8 @@ namespace USBdetect
             // 버튼 클릭 이벤트 연결
             btnClose.Click += (s, e) => this.Close();
             btnMinimize.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
-            btnMaximize.Click += (s, e) => {
+            btnMaximize.Click += (s, e) =>
+            {
                 if (this.WindowState == FormWindowState.Normal)
                     this.WindowState = FormWindowState.Maximized;
                 else
@@ -189,6 +208,26 @@ namespace USBdetect
             {
                 MessageBox.Show(this, status, "연결 상태 변경");
             });
+        }
+
+        private void manage_NotifyIcon()
+        {
+            string startupPath = Application.StartupPath;
+            string strIconFilePath = System.IO.Path.Combine(startupPath, "favicon.ico");
+
+            if (System.IO.File.Exists(strIconFilePath))
+            {
+                notifyIcon1.Icon = new System.Drawing.Icon(strIconFilePath);
+                notifyIcon1.Text = "USB Detector";
+                notifyIcon1.Visible = true;
+            }
+        }
+
+        private void notifyIcon1_MouseDoubleClick(object sender, EventArgs e)
+        {
+            this.WindowState = FormWindowState.Normal;
+
+            notifyIcon1.ShowBalloonTip(3000, "[주의]", "새로운 USB 입력이 감지되었습니다!", ToolTipIcon.Warning);
         }
     }
 }
