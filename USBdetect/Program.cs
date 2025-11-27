@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+//using UsbLibWrapper; // USBDetect-Core library
 
 namespace USBdetect
 {
@@ -14,6 +15,7 @@ namespace USBdetect
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Main());
+
         }
     }
 }

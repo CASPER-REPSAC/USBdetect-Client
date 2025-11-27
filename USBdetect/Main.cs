@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -133,6 +134,20 @@ namespace USBdetect
 
             JsonNode message = JsonNode.Parse(jsonMessage);
             string messageType = message?["type"]?.GetValue<string>();
+
+            // USB 장치 목록 요청 처리
+            if (messageType == "requestDeviceList")
+            {
+                // 최대 5개 장치 정보 반환
+                var devices = UsbStorageService.GetAllUsbDevices(5);
+                var deviceListJson = JsonSerializer.Serialize(new
+                {
+                    type = "deviceList",
+                    data = devices
+                }, new JsonSerializerOptions { IncludeFields = true }); // 필드 포함 옵션 추가
+                webView.CoreWebView2.PostWebMessageAsJson(deviceListJson);
+                return;
+            }
 
             // "connectSettings" 또는 "connectAndTest" 메시지일 때 서버 정보를 가져옵니다.
             if (messageType == "connectSettings" || messageType == "connectAndTest")
