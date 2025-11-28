@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace USBdetect // 네임스페이스는 프로젝트에 맞게 수정
 {
-    // C++ 구조체와 1:1 매핑
+    // 새 DLL의 정보 구조체에 맞춰 필드 구성 (wchar_t 고정 길이 배열 매핑)
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct USB_DEVICE_INFO
     {
@@ -16,49 +13,66 @@ namespace USBdetect // 네임스페이스는 프로젝트에 맞게 수정
         public ushort VendorId;             // VID
         public ushort ProductId;            // PID
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
-        public string SerialNumber;         // 시리얼 번호
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string HardwareId;           // 하드웨어 ID
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string ProductString;        // 제품명
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string FriendlyName;         // 표시 이름
 
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
-        public string ManufacturerString;   // 제조사
-
-        [MarshalAs(UnmanagedType.U1)]       // 1바이트 Boolean 처리
-        public bool IsBlocked;              // 차단 여부
+        [MarshalAs(UnmanagedType.U1)]
+        public bool IsWhitelisted;          // 화이트리스트 여부
 
         public override string ToString()
         {
-            return $"Index: {DeviceIndex}, VID: {VendorId}, PID: {ProductId}, Serial: {SerialNumber}, Product: {ProductString}, Manufacturer: {ManufacturerString}, Blocked: {IsBlocked}";
+            return $"Index: {DeviceIndex}, VID: {VendorId}, PID: {ProductId}, HardwareId: {HardwareId}, Name: {FriendlyName}, Whitelisted: {IsWhitelisted}";
         }
     }
 
     public static class UsbDriverProxy
     {
-        // DLL 파일명은 변경하지 마세요.
-        private const string DllName = "UsbMock.dll";
+        // 새 DLL 파일명으로 변경
+        private const string DllName = "UsbBlockerSDK.dll";
+
+        // 내보낸 함수 시그니처에 맞는 P/Invoke 선언 (일반적인 패턴)
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern uint GetUsbDeviceCount();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void InitUsbMock();
+        private static extern int GetUsbDeviceInfo(uint index, ref USB_DEVICE_INFO pInfo); // 0=성공, <0=에러
 
-        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void GetRandomUsbInfo(ref USB_DEVICE_INFO pInfo, uint index);
+        public static List<USB_DEVICE_INFO> GetAllFromDll()
+        {
+            var result = new List<USB_DEVICE_INFO>();
+            uint count = 0;
+            try { count = GetUsbDeviceCount(); }
+            catch { return result; }
+            for (uint i = 0; i < count; i++)
+            {
+                var info = new USB_DEVICE_INFO();
+                int rc = -1;
+                try { rc = GetUsbDeviceInfo(i, ref info); }
+                catch { rc = -1; }
+                if (rc == 0)
+                {
+                    result.Add(info);
+                    Console.WriteLine(info.ToString());
+                }
+            }
+            return result;
+        }
     }
 
     public static class UsbStorageService
     {
         public static List<USB_DEVICE_INFO> GetAllUsbDevices(int count)
         {
-            var list = new List<USB_DEVICE_INFO>();
-            for (uint i = 0; i < count; i++)
+            // 새 DLL에서 전체 목록을 가져와 요청된 개수로 트림
+            var devices = UsbDriverProxy.GetAllFromDll();
+            if (devices.Count > count)
             {
-                var info = new USB_DEVICE_INFO();
-                UsbDriverProxy.GetRandomUsbInfo(ref info, i);
-                Console.WriteLine(info.ToString()); // USB 정보 콘솔 출력
-                list.Add(info);
+                devices = devices.GetRange(0, count);
             }
-            return list;
+            return devices;
         }
     }
 
