@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace USBdetect
 {
@@ -14,7 +13,7 @@ namespace USBdetect
 
         public SignalR(string ip, string port)
         {
-            string serverUrl = $"http://{ip}:{port}/chathub"; 
+            string serverUrl = $"http://{ip}:{port}/chathub";
 
             connection = new HubConnectionBuilder()
                 .WithUrl(serverUrl)
@@ -66,7 +65,6 @@ namespace USBdetect
 
         public async Task SendTestMessageAsync()
         {
-            // "Test Client"라는 사용자로 "This is a test message."라는 메시지를 보냅니다.
             await SendMessageAsync("Test Client", "This is a test message.");
         }
 
@@ -76,6 +74,28 @@ namespace USBdetect
             {
                 await connection.DisposeAsync();
                 ConnectionStatusChanged?.Invoke("Disconnected.");
+            }
+        }
+
+        // JSON 문자열(장치 목록 등)을 서버 허브로 전송
+        // 서버 허브 메서드 이름은 "SendDeviceList"로 가정합니다.
+        public async Task SendDeviceListAsync(string jsonPayload)
+        {
+            if (connection.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    // 서버 허브: Task SendDeviceList(string json)
+                    await connection.InvokeAsync("SendDeviceList", jsonPayload);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending device list: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("SignalR connection is not established. Skipping SendDeviceList.");
             }
         }
     }

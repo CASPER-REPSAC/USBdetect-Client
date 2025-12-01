@@ -33,13 +33,18 @@ namespace USBdetect
             if (devices.Count == 0)
             {
                 MessageBox.Show("No USB devices found.");
-                return;
             }
-            for (int i = 0; i < devices.Count; i++)
+            else
             {
-                var d = devices[i];
-                MessageBox.Show($"[{i}] {d.Model}");
+                for (int i = 0; i < devices.Count; i++)
+                {
+                    var d = devices[i];
+                    MessageBox.Show($"[{i}] {d.Model}");
+                }
             }
+
+            // 앱 시작 시 스캔 결과를 서버로 보낼 준비(연결 후 실제 전송)
+            _ = SendDeviceListToServerAsync(devices);
         }
 
         public const int WM_NCLBUTTONDOWN = 0xA1;
@@ -52,14 +57,10 @@ namespace USBdetect
 
         private void SetupCustomTitleBar()
         {
-            // 그라데이션 그리기 이벤트 연결
             pnlTitleBar.Paint += PnlTitleBar_Paint;
-
-            // 창 드래그 이벤트 연결
             pnlTitleBar.MouseDown += TitleBar_MouseDown;
             lblTitle.MouseDown += TitleBar_MouseDown;
 
-            // 버튼 클릭 이벤트 연결
             btnClose.Click += (s, e) => this.Close();
             btnMinimize.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
             btnMaximize.Click += (s, e) =>
@@ -71,7 +72,6 @@ namespace USBdetect
             };
         }
 
-        // [핵심] 제목 표시줄 패널에 그라데이션을 그리는 메서드
         private void PnlTitleBar_Paint(object sender, PaintEventArgs e)
         {
             Rectangle rect = pnlTitleBar.ClientRectangle;
@@ -88,7 +88,6 @@ namespace USBdetect
             }
         }
 
-        // [핵심] 제목 표시줄을 마우스로 끌어 창을 이동시키는 메서드
         private void TitleBar_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -100,13 +99,10 @@ namespace USBdetect
 
         private async void Load_Main(object sender, EventArgs e)
         {
-            // webview init
             await webView.EnsureCoreWebView2Async(null);
 
-            // Webview Message Handler 등록
             webView.CoreWebView2.WebMessageReceived += HandleWebMessage;
 
-            // index.html 파일 로드
             string htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "index.html");
             webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
         }
@@ -125,7 +121,7 @@ namespace USBdetect
                 _ = signalR.DisconnectAsync();
             }
         }
-        /*
+
         private async void HandleWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
             string jsonMessage = args.WebMessageAsJson;
@@ -134,61 +130,39 @@ namespace USBdetect
             JsonNode message = JsonNode.Parse(jsonMessage);
             string messageType = message?["type"]?.GetValue<string>();
 
-            if (messageType == "connectSettings")
-            {
-                string ip = message?["data"]?["serverIp"]?.GetValue<string>();
-                string port = message?["data"]?["serverPort"]?.GetValue<string>();
-
-                signalR = new SignalR(ip, port);
-                signalR.MessageReceived += OnMessageReceived;
-                signalR.ConnectionStatusChanged += OnConnectionStatusChanged;
-                await signalR.ConnectAsync();
-            }
-        }
-        */
-        private async void HandleWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs args)
-        {
-            string jsonMessage = args.WebMessageAsJson;
-            if (string.IsNullOrEmpty(jsonMessage)) return;
-
-            JsonNode message = JsonNode.Parse(jsonMessage);
-            string messageType = message?["type"]?.GetValue<string>();
-
-            // USB 장치 목록 요청 처리
             if (messageType == "requestDeviceList")
             {
-                // 최대 5개 장치 정보 반환
                 var devices = UsbStorageService.GetAllUsbDevices(5);
                 var deviceListJson = JsonSerializer.Serialize(new
                 {
                     type = "deviceList",
                     data = devices
-                }, new JsonSerializerOptions { IncludeFields = true }); // 필드 포함 옵션 추가
+                }, new JsonSerializerOptions { IncludeFields = true });
                 webView.CoreWebView2.PostWebMessageAsJson(deviceListJson);
+
+                // 서버로도 전송
+                await SendDeviceListToServerAsync(devices);
                 return;
             }
 
-            // "connectSettings" 또는 "connectAndTest" 메시지일 때 서버 정보를 가져옵니다.
             if (messageType == "connectSettings" || messageType == "connectAndTest")
             {
                 string ip = message?["data"]?["serverIp"]?.GetValue<string>();
                 string port = message?["data"]?["serverPort"]?.GetValue<string>();
 
-                // SignalR 객체를 생성하고 이벤트를 연결합니다.
                 signalR = new SignalR(ip, port);
                 signalR.MessageReceived += OnMessageReceived;
                 signalR.ConnectionStatusChanged += OnConnectionStatusChanged;
 
-                // 서버에 연결을 시도합니다.
                 await signalR.ConnectAsync();
 
-                // 만약 메시지 타입이 "connectAndTest"였다면, 테스트 메시지를 즉시 보냅니다.
                 if (messageType == "connectAndTest")
                 {
-                    // 연결이 성공적으로 이루어졌는지 잠시 기다린 후 메시지를 보냅니다.
-                    // (연결 상태를 직접 확인하는 로직을 추가하면 더 안정적입니다.)
-                    await Task.Delay(1000); // 1초 대기
+                    await Task.Delay(1000);
                     await signalR.SendTestMessageAsync();
+
+                    var devices = UsbStorageService.GetAllUsbDevices(50);
+                    await SendDeviceListToServerAsync(devices);
                 }
             }
         }
@@ -228,6 +202,31 @@ namespace USBdetect
             this.WindowState = FormWindowState.Normal;
 
             notifyIcon1.ShowBalloonTip(3000, "[주의]", "새로운 USB 입력이 감지되었습니다!", ToolTipIcon.Warning);
+        }
+
+        // 서버로 장치 목록을 SignalR을 통해 전송
+        private async Task SendDeviceListToServerAsync(object devices)
+        {
+            try
+            {
+                if (signalR == null)
+                    return;
+
+                var payload = new
+                {
+                    type = "deviceList",
+                    data = devices
+                };
+
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { IncludeFields = true });
+
+                // 허브 메서드 "SendDeviceList"로 JSON 문자열 전달
+                await signalR.SendDeviceListAsync(json);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to send device list: {ex}");
+            }
         }
     }
 }
